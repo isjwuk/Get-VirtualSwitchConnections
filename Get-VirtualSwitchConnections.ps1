@@ -23,28 +23,34 @@ function Get-VirtualSwitchConnections {
       [string]
       $HostName
       )
+#Check for vCenter Connection      
+if (!($Global:DefaultVIServer -and $Global:DefaultVIServer[0].isconnected)){throw "Connect to vCenter first with Connect-VIServer"}
+
+#If Host Not Provided then Get All Hosts
 if ($HostName)
 {
     $VMHosts=Get-VMHost($HostName)
 }else{
     $VMHosts=Get-VMHost
 }
+
+#Check each pNIC on each Host in turn
 @(Foreach ($VMHost in ($VMHosts | Sort-Object -Property Name)){
 	$NetworkSystem=Get-View -id ($VMHost).ExtensionData.Configmanager.Networksystem
 	@(Foreach ($PNIC in $NetworkSystem.Networkconfig.pnic)
 		{$Device=$NetworkSystem.QueryNetworkHint($pNIC.device)
         
-        #Get the Switch Name, if not the Chassis ID
-        $SwitchName=($Device.LLDPInfo.Parameter| Where-Object {$_.key -eq "System Name"}).Value
-        if (!($SwitchName)){
-            $SwitchName=$Device.LLDPInfo.ChassisID
-        }
+        	#Get the Switch Name, if not the Chassis ID
+        	$SwitchName=($Device.LLDPInfo.Parameter| Where-Object {$_.key -eq "System Name"}).Value
+        	if (!($SwitchName)){
+        	    $SwitchName=$Device.LLDPInfo.ChassisID
+        	}
 
-        #Get the Port Number. A couple of methods again here.
-        $SwitchPort=($Device.LLDPInfo.Parameter| Where-Object {$_.key -eq "Port Description"}).Value
-        if (!($SwitchPort)){
-            $SwitchPort=$Device.LLDPInfo.PortId
-        }
+        	#Get the Port Number. A couple of methods again here.
+        	$SwitchPort=($Device.LLDPInfo.Parameter| Where-Object {$_.key -eq "Port Description"}).Value
+        	if (!($SwitchPort)){
+        	    $SwitchPort=$Device.LLDPInfo.PortId
+        	}
 
 		$Device | Select-Object @{N="HostName";E={$VMHost.Name}}, `
 			Device, `
